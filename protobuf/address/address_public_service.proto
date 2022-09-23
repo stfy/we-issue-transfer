@@ -4,7 +4,7 @@ package wavesenterprise.grpc;
 option java_multiple_files = true;
 option java_package = "com.wavesenterprise.protobuf.service.address";
 option csharp_namespace = "WavesEnterprise";
-option go_package = "wego/pkg/grpc/pkg/address";
+option go_package = "wego/pkg/grpc/address";
 
 import "google/protobuf/wrappers.proto";
 import "google/protobuf/empty.proto";

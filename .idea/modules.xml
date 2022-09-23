@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../../js-contract-sdk/.idea/js-contract-sdk.iml" filepath="$PROJECT_DIR$/../../js-contract-sdk/.idea/js-contract-sdk.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/wego.iml" filepath="$PROJECT_DIR$/.idea/wego.iml" />
     </modules>
   </component>

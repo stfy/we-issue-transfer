@@ -10,5 +10,5 @@ extend google.protobuf.MessageOptions {
 }
 
 message CurrentContractApiVersion {
-  option (contract_api_version) = "1.5-amazur_native-tokens-final-proto-SNAPSHOT";
+  option (contract_api_version) = "1.7";
 }

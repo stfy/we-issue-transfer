@@ -1,5 +1,6 @@
 build:
-	docker build -f ./Dockerfile . -t issue-transfer:0.0.1
+	docker build -f ./Dockerfile . -t we-issue-transfer:0.0.4
+
 pb:
 	@protoc --proto_path=protobuf  \
 			--go_out=pkg/grpc --go_opt=paths=source_relative \

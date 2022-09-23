@@ -3,10 +3,11 @@ package contract
 import (
 	"context"
 	"errors"
+	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
+	g "google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"log"
-	"wego/pkg/grpc"
+	grpc "wego/pkg/grpc"
 	contract2 "wego/pkg/grpc/contract"
 )
 
@@ -14,7 +15,7 @@ type contract struct {
 	c contract2.ContractServiceClient
 
 	authToken string
-	handlers  map[string]Action
+	handlers  map[string]*Action
 }
 
 type Contract interface {
@@ -31,12 +32,12 @@ func NewContract(c contract2.ContractServiceClient) Contract {
 	return &contract{
 		c:         c,
 		authToken: "",
-		handlers:  map[string]Action{},
+		handlers:  map[string]*Action{},
 	}
 }
 
 func (c *contract) Handler(t Action) {
-	c.handlers[t.Name()] = t
+	c.handlers[t.Name()] = &t
 }
 
 func (c *contract) Auth(t string) {
@@ -62,12 +63,30 @@ func (c *contract) HandleTx(tx *contract2.ContractTransaction) {
 			panic(err)
 		}
 
-		log.Println("Contract successfully created", resp)
+		zap.S().Infoln("Contract successfully created", resp)
 	case 104:
 		action, err := txAction(tx)
 
-		if err != nil {
+		zap.S().Infoln("Try to execute action", action)
+		zap.S().Infoln("Available action handlers", c.handlers)
 
+		ec := NewExecutionContext(c.Ctx(), &c.c, NewState(c.c, tx.ContractId), NewOperations(), tx)
+		handler := *c.handlers[action]
+
+		if handler == nil {
+			zap.S().Infoln("Action not founded")
+
+			_, _ = c.c.CommitExecutionError(c.Ctx(), &contract2.ExecutionErrorRequest{
+				TxId:    tx.Id,
+				Message: "Action not founded",
+				Code:    1,
+			})
+			return
+		}
+
+		handler.Handle(*ec, tx)
+
+		if err != nil {
 			c.c.CommitExecutionError(c.Ctx(), &contract2.ExecutionErrorRequest{
 				TxId:    tx.Id,
 				Message: err.Error(),
@@ -77,38 +96,38 @@ func (c *contract) HandleTx(tx *contract2.ContractTransaction) {
 			break
 		}
 
-		state := NewState(c.c, tx.ContractId)
-
-		ec := NewExecutionContext(c.Ctx(), &c.c, state, NewOperations(), tx)
-
-		c.handlers[action].Handle(*ec, tx)
-
-		if err != nil {
-			log.Println(err)
-			panic(err)
-		}
-
-		log.Println("Action executed", tx.Id, tx.Params)
-		log.Println(ec.State.GetEntries())
-		log.Println(ec.Operations.GetResult())
+		zap.S().Infoln("Action executed", tx.Id, tx.Params)
+		zap.S().Infoln("Entries changes", ec.State.GetEntries())
+		zap.S().Infoln("Asset operations", ec.Operations.GetResult())
 
 		results := ec.State.GetEntries()
 		ops := ec.Operations.GetResult()
 
-		resp, err := c.c.CommitExecutionSuccess(c.Ctx(), &contract2.ExecutionSuccessRequest{
-			TxId:            tx.Id,
-			Results:         results,
-			AssetOperations: ops,
-		})
+		var header, trailer metadata.MD
+
+		resp, err := c.c.CommitExecutionSuccess(
+			c.Ctx(),
+			&contract2.ExecutionSuccessRequest{
+				TxId:            tx.Id,
+				Results:         results,
+				AssetOperations: ops,
+			},
+			g.Header(&header),
+			g.Trailer(&trailer),
+		)
 
 		if err != nil {
+			zap.S().Errorln("header", header)
+			zap.S().Errorln("trailer", trailer)
+			zap.S().Errorln("err", err)
+
 			_, _ = c.c.CommitExecutionError(c.Ctx(), &contract2.ExecutionErrorRequest{
 				TxId:    tx.Id,
 				Message: err.Error(),
 				Code:    0,
 			})
 		} else {
-			log.Println("Contract action successfully executed", resp, err)
+			zap.S().Infoln("Contract action successfully executed", resp, err)
 		}
 	}
 }

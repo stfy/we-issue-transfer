@@ -2,6 +2,7 @@ package contract
 
 import (
 	"context"
+	"go.uber.org/zap"
 	"wego/pkg/grpc"
 	contract2 "wego/pkg/grpc/contract"
 )
@@ -53,20 +54,13 @@ func (r *state) Get(ctx context.Context, key string) (*grpc.DataEntry, error) {
 	return resp.Entry, err
 }
 
-type ExecutionResults struct {
-	Data            []grpc.DataEntry
-	AssetOperations []grpc.ContractAssetOperation
-}
-
 type contractAction struct {
 	name string
-
-	fn func(ExecutionContext, *contract2.ContractTransaction)
+	fn   func(ExecutionContext, *contract2.ContractTransaction)
 }
 
 type Action interface {
 	Name() string
-
 	Handle(ec ExecutionContext, tx *contract2.ContractTransaction)
 }
 
@@ -80,4 +74,6 @@ func (r *contractAction) Name() string {
 
 func (r *contractAction) Handle(ec ExecutionContext, tx *contract2.ContractTransaction) {
 	r.fn(ec, tx)
+
+	zap.S().Infoln("Executed handler", r.name, ec, tx)
 }
